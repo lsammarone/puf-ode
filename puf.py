@@ -93,6 +93,10 @@ class ODEPuf3:
             result = self._derivative(t, self._from_array(vs))
             return self._to_array(result)
 
+        def ext_func(t):
+            return list(map(lambda name: self._forcing_functions[name].compute(t), \
+                            self.var_names))
+
         # compute the time between samples and the total number of samples
         dt = 1.0/samples_per_step
         n = math.ceil(sim_time/dt)
@@ -106,10 +110,11 @@ class ODEPuf3:
 
         # record the state at each sample step. The solver may compute the step
         # at intermediate times to get a good simulation.
-        info = {"time":[], "values":[]}
+        info = {"time":[], "values":[], "forcing_inputs":[]}
         while solver.successful() and solver.t < sim_time:
             info["time"].append(solver.t)
             info["values"].append(solver.y)
+            info["forcing_inputs"].append(ext_func(solver.t))
             solver.integrate(solver.t + dt)
 
 
@@ -127,10 +132,25 @@ class ODEPuf3:
         # translate the data in `info` to a format that can be easily plotted
         times = info["time"]
         variables = {}
+        forcing_inputs = {}
         for idx,variable in enumerate(self.var_names):
             variables[variable] = []
+
             for vect in info["values"]:
                 variables[variable].append(vect[idx])
+
+            if not isinstance(self._forcing_functions[variable], Zero):
+                forcing_inputs[variable] = []
+                for vect in info["forcing_inputs"]:
+                    forcing_inputs[variable].append(vect[idx])
+
+
+        # plot each variable's trajectory and save it to a file
+        for name,values in forcing_inputs.items():
+            plt.plot(times,values)
+            plt.savefig("%s/%s_INP_%s.png" % (directory,prefix,name))
+            plt.clf()
+
 
         # plot each variable's trajectory and save it to a file
         for name,values in variables.items():
@@ -172,9 +192,20 @@ class ODEPuf3:
         return self.state,info
 
     def get_response(self):
+        #backup original forcing functions
+        challenge = dict(self._forcing_functions)
+
+        # set every forcing function to zero.
+        # we do this because we stopped applying inputs!
+        for variable in self.var_names:
+            self._forcing_functions[variable] = Zero()
+
         #FIXME.. how do i get a response
-        # simulate for ten simulation time units and return nothing
+        # simulate for ten simulation time units and return nothing 
         info = self.simulate(10);
+
+        # restore original forcing functions
+        self._forcing_functions = challenge
         return None,info
 
 
