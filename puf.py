@@ -141,18 +141,22 @@ class ODEPuf3:
 
     def write_challenge(self,pulses):
         # make sure the inputs make sense
-        if not (len(pulses.keys()) == self.number_diffeqs):
-            raise Exception("expected <%d> pulses, since there are <%d> diffeqs" \
-                            % (self.number_diffeqs))
         if not (all(map(lambda p: isinstance(p, Pulse), pulses.values()))):
             raise Exception("the challenge must be a list of Pulse objects")
 
         # update forcing function array and set delays so that we align signals
         for variable in self.var_names:
+            # if the variable has a pulse associated with it, align all the
+            # leading edges of the pulses (they all start at time 0)
+            # you need to copy each pulse before doing that otherwise changing
+            # the delay changes the input argument
             if variable in pulses:
                 self._forcing_functions[variable] = pulses[variable].copy()
                 self._forcing_functions[variable].delay = 0
             else:
+                # any variables that do not have pulses are assigned
+                # a forcing function which always returns zero (equivalent to
+                # no forcing function)
                 self._forcing_functions[variable] = Zero()
 
         # set the state variable values to zero
