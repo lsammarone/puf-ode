@@ -3,6 +3,9 @@ from scipy.integrate import ode
 import matplotlib.pyplot as plt
 import os
 
+# a pulse forcing function. The width and height are the
+# time to hold the pulse and the pulse amplitude. The delay
+# is the time to start applying the pulse.
 class Pulse:
 
     def __init__(self,width, height, delay=0.0):
@@ -10,6 +13,7 @@ class Pulse:
         self.pulse_width = width
         self.height = height
 
+    # given a time, compute the value of the pulse.
     def compute(self,time):
         delta = time - self.delay
         if delta >= 0 and delta < self.pulse_width:
@@ -20,6 +24,8 @@ class Pulse:
     def copy(self):
         return Pulse(self.pulse_width, self.height, self.delay)
 
+
+# a forcing function that always returns zero.
 class Zero:
 
 	def __init__(self):
@@ -28,21 +34,30 @@ class Zero:
 	def compute(self,time):
 		return 0.0;
 
+
+# A 3 cell puf.
 class ODEPuf3:
 
+    # creates a new PUF with a set of K parameters.
     def __init__(self, ks):
         assert(len(self.var_names) == self.number_diffeqs)
 
         self.ks = {}
+        # set all of the k parameters, make sure that
+        # there is a k parameter for every variable in the system
         for vn in self.var_names:
             assert(vn in ks)
             self.ks[vn] = ks[vn]
 
 
+        # instantiate the state of the system.
         self._state = {}
         for vn in self.var_names:
             self._state[vn] = 0.0
 
+        # instantiate forcing function for each variable.
+        # each variable is initially given a forcing function that always
+        # returns zero (no challenge is applied)
         self._forcing_functions = {};
         for vn in self.var_names:
             self._forcing_functions[vn] = Zero()
@@ -79,9 +94,14 @@ class ODEPuf3:
         #FIXME: return actual correct derivatives
         return ddts
 
+    # converts a map (or dictionary) of variable values to an array of values.
+    # the order of values in the array is determined by the `var_names` property
     def _to_array(self,value_dict):
         return list(map(lambda name: value_dict[name],self.var_names))
 
+    # converts a list of variable values to a map (or dictionary) of values. The
+    # dictionary maps variable names to values. The order of values in the list
+    # should follow the order of variables defined in `var_names`
     def _from_array(self,value_list):
         return dict(zip(self.var_names, value_list))
 
@@ -139,6 +159,7 @@ class ODEPuf3:
             for vect in info["values"]:
                 variables[variable].append(vect[idx])
 
+            # set up plots for any non-zero forcing functions.
             if not isinstance(self._forcing_functions[variable], Zero):
                 forcing_inputs[variable] = []
                 for vect in info["forcing_inputs"]:
